@@ -75,6 +75,16 @@ class Context(object):
             source_file = build_dir.joinpath(module_name + '.pyx')
             pyx_source_path.copy(source_file)
 
+            # If there is a Cython `pxd` header, copy it to the build
+            # directory.
+            header_file = pyx_source_path.parent.joinpath(
+                pyx_source_path.namebase + '.pxd')
+            if header_file.isfile():
+                header_file.copy(source_file.parent.joinpath(module_name +
+                                                             '.pxd'))
+            else:
+                print '"%s" is not a file.' % header_file
+
             compile_result = compile(source_file, default_options,
                                      **pyx_kwargs)
             if module_dir is None:
@@ -91,8 +101,11 @@ class Context(object):
             else:
                 if module_dir not in sys.path:
                     sys.path.insert(0, module_dir)
-        finally:
-            build_dir.rmdir_p()
+        except:
+            print build_dir
+            raise
+        else:
+            build_dir.rmtree()
         return module_dir, module_name
 
     def inline_pyx_module(self, source, **kwargs):
@@ -110,13 +123,6 @@ class Context(object):
 
         kwargs_hdict = HDict(map(transform_hashable, kwargs.items()))
         return self._inline_pyx_module(source, kwargs_hdict)
-
-    def import_pyx_inline(self, source, as_=None, **kwargs):
-        module_dir, module_name = self.inline_pyx_module(source, **kwargs)
-        if as_ is None:
-            exec('from %s import *' % module_name)
-        else:
-            exec('import %s as %s' % (module_name, as_))
 
     @functools32.lru_cache()
     # Cache calls since they will result in the same compiled code.
