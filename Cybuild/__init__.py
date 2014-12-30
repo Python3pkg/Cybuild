@@ -19,8 +19,32 @@ class HList(list):
         return hash(frozenset(self))
 
 
+class HostBuilder(object):
+    def __call__(self, extension_c_path, build_dir, **kwargs):
+        extension_c_path = str(extension_c_path)
+        return build_extension(extension_c_path, build_dir=build_dir, **kwargs)
+
+
+class NvccBuilder(object):
+    def __call__(self, extension_c_path, build_dir, **kwargs):
+        from theano.sandbox.cuda.nvcc_compiler import NVCC_compiler
+
+        extension_c_path = path(extension_c_path)
+        module_name = extension_c_path.namebase
+        print extension_c_path, module_name
+        try:
+            NVCC_compiler.compile_str(module_name,
+                                      extension_c_path.bytes(),
+                                      build_dir, py_module=False,
+                                      **kwargs)
+            return True
+        except:
+            return False
+
+
 class Context(object):
-    def __init__(self, cythrust_rcd=path('~/.config/cythrust').expand()):
+    def __init__(self, cythrust_rcd=path('~/.config/cythrust').expand(),
+                 builder=None):
         if not cythrust_rcd.isdir():
             cythrust_rcd.makedirs_p()
         self.cythrust_rcd = cythrust_rcd
@@ -30,6 +54,9 @@ class Context(object):
         self.config = ConfigParser()
         self.config.read([self.cythrust_rc])
         self._build_cache_root = None
+        if builder is None:
+            builder = HostBuilder()
+        self.builder = builder
 
     @property
     def build_cache_root(self):
@@ -92,9 +119,8 @@ class Context(object):
             else:
                 module_dir = path(module_dir).expand()
             module_dir.makedirs_p()
-            success = build_extension(str(compile_result.c_file),
-                                      build_dir=module_dir,
-                                      **distutils_kwargs)
+            success = self.builder(compile_result.c_file, build_dir=module_dir,
+                                   **distutils_kwargs)
             if not success:
                 raise RuntimeError('Error building extension: %s' %
                                    compile_result.c_file)
