@@ -1,7 +1,7 @@
 import sys
 import tempfile
 from collections import OrderedDict
-from ConfigParser import ConfigParser, NoOptionError, NoSectionError
+from configparser import ConfigParser, NoOptionError, NoSectionError
 
 import functools32
 from scipy.weave.build_tools import build_extension
@@ -11,7 +11,7 @@ from path_helpers import path
 
 class HDict(OrderedDict):
     def __hash__(self):
-        return hash(frozenset(self.items()))
+        return hash(frozenset(list(self.items())))
 
 
 class HList(list):
@@ -31,7 +31,7 @@ class NvccBuilder(object):
 
         extension_c_path = path(extension_c_path)
         module_name = extension_c_path.namebase
-        print extension_c_path, module_name
+        print(extension_c_path, module_name)
         try:
             NVCC_compiler.compile_str(module_name,
                                       extension_c_path.bytes(),
@@ -110,7 +110,7 @@ class Context(object):
                 header_file.copy(source_file.parent.joinpath(module_name +
                                                              '.pxd'))
             else:
-                print '"%s" is not a file.' % header_file
+                print('"%s" is not a file.' % header_file)
 
             compile_result = compile(source_file, default_options,
                                      **pyx_kwargs)
@@ -128,7 +128,7 @@ class Context(object):
                 if module_dir not in sys.path:
                     sys.path.insert(0, module_dir)
         except:
-            print build_dir
+            print(build_dir)
             raise
         else:
             build_dir.rmtree()
@@ -147,7 +147,7 @@ class Context(object):
                 v = HDict(v)
             return k, v
 
-        kwargs_hdict = HDict(map(transform_hashable, kwargs.items()))
+        kwargs_hdict = HDict(list(map(transform_hashable, list(kwargs.items()))))
         return self._inline_pyx_module(source, kwargs_hdict)
 
     @functools32.lru_cache()
